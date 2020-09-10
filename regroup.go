@@ -5,7 +5,10 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 )
+
+const RequiredOption = "required"
 
 type ReGroup struct {
 	matcher *regexp.Regexp
@@ -36,6 +39,11 @@ func (t *TypeNotParsableError) Error() string {
 type ParseError struct{err error}
 func (p *ParseError) Error() string {
 	return fmt.Sprintf("parse error: %v", p.err)
+}
+
+type RequiredGroupIsEmpty struct{groupName string; fieldName string}
+func (r *RequiredGroupIsEmpty) Error() string {
+	return fmt.Sprintf("required regroup %s is empty for field %s", r.groupName, r.fieldName)
 }
 
 func quote(s string) string {
@@ -72,6 +80,61 @@ func (r *ReGroup) matchGroupMap(match []string) map[string]string {
 	return ret
 }
 
+func (r *ReGroup) groupAndOption(fieldType reflect.StructField) (group, option string) {
+	regroupKey := fieldType.Tag.Get("regroup")
+	if regroupKey == "" {
+		return "", ""
+	}
+	splitted := strings.Split(regroupKey, ",")
+	if len(splitted) == 1 {
+		return splitted[0], ""
+	}
+	return splitted[0], strings.ToLower(splitted[1])
+}
+
+func (r *ReGroup) setField(fieldType reflect.StructField, fieldRef reflect.Value, matchGroup map[string]string) error {
+	regroupKey, regroupOption := r.groupAndOption(fieldType)
+	if regroupKey == "" {
+		return nil
+	}
+	fieldRefType := fieldType.Type
+
+	matchedVal, ok := matchGroup[regroupKey]
+	if !ok {
+		return &UnknownGroupError{group: regroupKey}
+	}
+
+	if matchedVal == "" && RequiredOption == regroupOption {
+		return &RequiredGroupIsEmpty{groupName: regroupKey, fieldName: fieldType.Name}
+	}
+
+	if fieldRefType.Kind() == reflect.Ptr {
+		if fieldRef.IsNil() {
+			return fmt.Errorf("can't set value to nil pointer in struct field: %s", fieldType.Name)
+		}
+		fieldRefType = fieldType.Type.Elem()
+		fieldRef = fieldRef.Elem()
+	}
+
+	if fieldRefType.Kind() == reflect.Struct {
+		return r.fillTarget(matchGroup, fieldRef)
+	}
+
+	parsedFunc := getParsingFunc(fieldRefType)
+	if parsedFunc == nil {
+		return &TypeNotParsableError{fieldRefType}
+	}
+
+	parsed, err := parsedFunc(matchedVal, fieldRefType)
+	if err != nil {
+		return &ParseError{err: err}
+	}
+
+	fieldRef.Set(parsed)
+
+	return nil
+}
+
 func (r *ReGroup) fillTarget(matchGroup map[string]string, target interface{}) error {
 	targetPtr := reflect.ValueOf(target)
 	if targetPtr.Kind() != reflect.Ptr {
@@ -89,28 +152,9 @@ func (r *ReGroup) fillTarget(matchGroup map[string]string, target interface{}) e
 			continue
 		}
 
-		fieldType := targetType.Field(i)
-		regroupKey := fieldType.Tag.Get("regroup")
-		if regroupKey == "" {
-			continue
+		if err := r.setField(targetType.Field(i), fieldRef, matchGroup); err != nil {
+			return err
 		}
-
-		matchedVal, ok := matchGroup[regroupKey]
-		if !ok {
-			return &UnknownGroupError{group: regroupKey}
-		}
-
-		parsedFunc, ok := parsingFuncs[fieldType.Type.Kind()]
-		if !ok {
-			return &TypeNotParsableError{fieldType.Type}
-		}
-
-		parsed, err := parsedFunc(matchedVal, fieldType.Type)
-		if err != nil {
-			return &ParseError{err: err}
-		}
-
-		fieldRef.Set(parsed)
 	}
 
 	return nil

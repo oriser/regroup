@@ -3,20 +3,38 @@ package regroup
 import (
 	"reflect"
 	"strconv"
+	"time"
 )
 
 type parseFunc func(src string, typ reflect.Type) (reflect.Value, error)
 
-var parsingFuncs = map[reflect.Kind]parseFunc {
-	reflect.Int: parseInt,
-	reflect.Int8: parseInt,
-	reflect.Int16: parseInt,
-	reflect.Int64: parseInt,
-	reflect.Uint: parseUInt,
-	reflect.Uint8: parseUInt,
-	reflect.Uint16: parseUInt,
-	reflect.Uint64: parseUInt,
-	reflect.String: parseString,
+var builtinTypesParsingFuncs = map[reflect.Kind]parseFunc{
+	reflect.Bool:    parseBool,
+	reflect.Int:     parseInt,
+	reflect.Int8:    parseInt,
+	reflect.Int16:   parseInt,
+	reflect.Int64:   parseInt,
+	reflect.Uint:    parseUInt,
+	reflect.Uint8:   parseUInt,
+	reflect.Uint16:  parseUInt,
+	reflect.Uint64:  parseUInt,
+	reflect.String:  parseString,
+	reflect.Float32: parseFloat,
+	reflect.Float64: parseFloat,
+}
+
+var typesParsingFuncs = map[reflect.Type]parseFunc{
+	reflect.TypeOf(time.Second): parseDuration,
+}
+
+func getParsingFunc(typ reflect.Type) parseFunc {
+	if parsingFunc, ok := builtinTypesParsingFuncs[typ.Kind()]; ok {
+		return parsingFunc
+	}
+	if parsingFunc, ok := typesParsingFuncs[typ]; ok {
+		return parsingFunc
+	}
+	return nil
 }
 
 func parseString(src string, typ reflect.Type) (reflect.Value, error) {
@@ -39,4 +57,28 @@ func parseUInt(src string, typ reflect.Type) (reflect.Value, error) {
 	}
 
 	return reflect.ValueOf(n).Convert(typ), nil
+}
+
+func parseFloat(src string, typ reflect.Type) (reflect.Value, error) {
+	n, err := strconv.ParseFloat(src, 64)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+	return reflect.ValueOf(n).Convert(typ), nil
+}
+
+func parseBool(src string, typ reflect.Type) (reflect.Value, error) {
+	b, err := strconv.ParseBool(src)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+	return reflect.ValueOf(b), nil
+}
+
+func parseDuration(src string, typ reflect.Type) (reflect.Value, error) {
+	d, err := time.ParseDuration(src)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+	return reflect.ValueOf(d), nil
 }
