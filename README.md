@@ -115,6 +115,7 @@ func main() {
 Will return an error: `required regroup "foo" is empty for field "Str"`
 
 ## Supported struct field types
+- `time.Duration`
 - `bool`
 - `string`
 - `int`
