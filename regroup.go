@@ -21,6 +21,8 @@ func quote(s string) string {
 	return strconv.Quote(s)
 }
 
+// Compile compiles given expression as regex and return new ReGroup with this expression as matching engine.
+// If the expression can't be compiled as regex, a CompileError will be returned
 func Compile(expr string) (*ReGroup, error) {
 	matcher, err := regexp.Compile(expr)
 	if err != nil {
@@ -30,6 +32,7 @@ func Compile(expr string) (*ReGroup, error) {
 	return &ReGroup{matcher: matcher}, nil
 }
 
+// MustCompile calls Compile and panicked if it retuned an error
 func MustCompile(expr string) *ReGroup {
 	reGroup, err := Compile(expr)
 	if err != nil {
@@ -38,6 +41,7 @@ func MustCompile(expr string) *ReGroup {
 	return reGroup
 }
 
+// matchGroupMap convert match string array into a map of group key to group value
 func (r *ReGroup) matchGroupMap(match []string) map[string]string {
 	ret := make(map[string]string)
 	for i, name := range r.matcher.SubexpNames() {
@@ -48,6 +52,7 @@ func (r *ReGroup) matchGroupMap(match []string) map[string]string {
 	return ret
 }
 
+// groupAndOption return the requested regroup and it's option splitted by ','
 func (r *ReGroup) groupAndOption(fieldType reflect.StructField) (group, option string) {
 	regroupKey := fieldType.Tag.Get("regroup")
 	if regroupKey == "" {
@@ -60,6 +65,8 @@ func (r *ReGroup) groupAndOption(fieldType reflect.StructField) (group, option s
 	return splitted[0], strings.ToLower(splitted[1])
 }
 
+// setField getting a single struct field and matching groups map and set the field value to its matching group value tag
+// after parsing it to match the field type
 func (r *ReGroup) setField(fieldType reflect.StructField, fieldRef reflect.Value, matchGroup map[string]string) error {
 	fieldRefType := fieldType.Type
 	ptr := false
@@ -133,6 +140,7 @@ func (r *ReGroup) fillTarget(matchGroup map[string]string, targetRef reflect.Val
 	return nil
 }
 
+// validateTarget checks that given interface is a pointer of struct
 func (r *ReGroup) validateTarget(target interface{}) (reflect.Value, error) {
 	targetPtr := reflect.ValueOf(target)
 	if targetPtr.Kind() != reflect.Ptr {
@@ -154,6 +162,8 @@ func (r *ReGroup) MatchToTarget(s string, target interface{}) error {
 	return r.fillTarget(r.matchGroupMap(match), targetRef)
 }
 
+// Creating a new pointer to given target type
+// Will recurse over all NOT NIL struct pointer and create them too
 func (r *ReGroup) getNewTargetType(originalRef reflect.Value) reflect.Value {
 	originalType := originalRef.Type()
 
@@ -166,6 +176,7 @@ func (r *ReGroup) getNewTargetType(originalRef reflect.Value) reflect.Value {
 			}
 			origElem := origFieldRef.Elem()
 			if origElem.Type().Kind() == reflect.Struct {
+				// If the type is not nil struct pointer, recurse into it to create all necessary fields inside
 				target.Field(i).Set(r.getNewTargetType(origElem).Addr())
 			} else {
 				target.Field(i).Set(reflect.New(origElem.Type()))
@@ -176,6 +187,10 @@ func (r *ReGroup) getNewTargetType(originalRef reflect.Value) reflect.Value {
 	return target
 }
 
+// MatchAllToTarget will find all the regex matches for given string 's',
+// and parse them into objects of the same type as `targetType` argument.
+// The return type is an array of interfaces, which every element is the same type as `targetType` argument.
+// If no matches found, a &NoMatchFoundError error will be returned
 func (r *ReGroup) MatchAllToTarget(s string, n int, targetType interface{}) ([]interface{}, error) {
 	targetRefType, err := r.validateTarget(targetType)
 	if err != nil {
