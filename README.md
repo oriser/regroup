@@ -131,4 +131,4 @@ Will return an error: `required regroup "foo" is empty for field "Str"`
 - `float32`
 - `float64`
 
-Pointers and nested structs are also supported.
+Pointers and nested structs are also supported, both on single match and multiple matches
