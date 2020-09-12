@@ -149,6 +149,8 @@ func (r *ReGroup) validateTarget(target interface{}) (reflect.Value, error) {
 	return targetPtr.Elem(), nil
 }
 
+// MatchToTarget matches a regex expression to string s and parse it into `target` argument.
+// If no matches found, a &NoMatchFoundError error will be returned
 func (r *ReGroup) MatchToTarget(s string, target interface{}) error {
 	match := r.matcher.FindStringSubmatch(s)
 	if match == nil {
