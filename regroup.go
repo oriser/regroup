@@ -62,21 +62,32 @@ func (r *ReGroup) groupAndOption(fieldType reflect.StructField) (group, option s
 
 func (r *ReGroup) setField(fieldType reflect.StructField, fieldRef reflect.Value, matchGroup map[string]string) error {
 	fieldRefType := fieldType.Type
+	ptr := false
 	if fieldRefType.Kind() == reflect.Ptr {
-		if fieldRef.IsNil() {
-			return fmt.Errorf("can't set value to nil pointer in struct field: %s", fieldType.Name)
-		}
+		ptr = true
 		fieldRefType = fieldType.Type.Elem()
-		fieldRef = fieldRef.Elem()
 	}
 
 	if fieldRefType.Kind() == reflect.Struct {
+		if ptr {
+			if fieldRef.IsNil() {
+				return fmt.Errorf("can't set value to nil pointer in struct field: %s", fieldType.Name)
+			}
+			fieldRef = fieldRef.Elem()
+		}
 		return r.fillTarget(matchGroup, fieldRef)
 	}
 
 	regroupKey, regroupOption := r.groupAndOption(fieldType)
 	if regroupKey == "" {
 		return nil
+	}
+
+	if ptr {
+		if fieldRef.IsNil() {
+			return fmt.Errorf("can't set value to nil pointer in field: %s", fieldType.Name)
+		}
+		fieldRef = fieldRef.Elem()
 	}
 
 	matchedVal, ok := matchGroup[regroupKey]
@@ -107,12 +118,10 @@ func (r *ReGroup) setField(fieldType reflect.StructField, fieldRef reflect.Value
 }
 
 func (r *ReGroup) fillTarget(matchGroup map[string]string, targetRef reflect.Value) error {
-	fmt.Printf("Matches: %+v\n", matchGroup)
 	targetType := targetRef.Type()
 	for i := 0; i < targetType.NumField(); i++ {
 		fieldRef := targetRef.Field(i)
 		if !fieldRef.CanSet() {
-			fmt.Printf("Can't set %s\n", targetType.Field(i).Name)
 			continue
 		}
 
@@ -137,13 +146,34 @@ func (r *ReGroup) MatchToTarget(s string, target interface{}) error {
 	if match == nil {
 		return &NoMatchFoundError{}
 	}
-	fmt.Printf("Match: %+v\n", match)
 
 	targetRef, err := r.validateTarget(target)
 	if err != nil {
 		return err
 	}
 	return r.fillTarget(r.matchGroupMap(match), targetRef)
+}
+
+func (r *ReGroup) getNewTargetType(originalRef reflect.Value) reflect.Value {
+	originalType := originalRef.Type()
+
+	target := reflect.New(originalRef.Type()).Elem()
+	for i := 0; i < originalRef.NumField(); i++ {
+		origFieldRef := originalRef.Field(i)
+		if originalType.Field(i).Type.Kind() == reflect.Ptr {
+			if origFieldRef.IsNil() {
+				continue
+			}
+			origElem := origFieldRef.Elem()
+			if origElem.Type().Kind() == reflect.Struct {
+				target.Field(i).Set(r.getNewTargetType(origElem).Addr())
+			} else {
+				target.Field(i).Set(reflect.New(origElem.Type()))
+			}
+
+		}
+	}
+	return target
 }
 
 func (r *ReGroup) MatchAllToTarget(s string, n int, targetType interface{}) ([]interface{}, error) {
@@ -153,14 +183,13 @@ func (r *ReGroup) MatchAllToTarget(s string, n int, targetType interface{}) ([]i
 	}
 
 	matches := r.matcher.FindAllStringSubmatch(s, n)
-	fmt.Printf("All matches: %+v\n", matches)
 	if matches == nil {
 		return nil, &NoMatchFoundError{}
 	}
 
 	ret := make([]interface{}, len(matches))
 	for i, match := range matches {
-		target := reflect.New(targetRefType.Type()).Elem()
+		target := r.getNewTargetType(targetRefType)
 		if err := r.fillTarget(r.matchGroupMap(match), target); err != nil {
 			return nil, err
 		}

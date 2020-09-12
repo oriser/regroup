@@ -24,6 +24,16 @@ type Required struct {
 	Str string `regroup:"str,required"`
 }
 
+type IncludingPointers struct {
+	Num    *int   `regroup:"num"`
+	Str    string `regroup:"str"`
+	Single *Single
+}
+
+func intPtr(val int) *int {
+	return &val
+}
+
 func getTarget(expected interface{}) interface{} {
 	switch expected.(type) {
 	case Single:
@@ -36,6 +46,8 @@ func getTarget(expected interface{}) interface{} {
 		return &IncorrectGroup{}
 	case *Required:
 		return &Required{}
+	case *IncludingPointers:
+		return &IncludingPointers{Num: intPtr(0), Single: &Single{}}
 	default:
 		panic("invalid expected")
 	}
@@ -153,6 +165,11 @@ func TestReGroup_MatchAllToTarget(t *testing.T) {
 			name:     "Multiple matches",
 			s:        "5s 123 foo\n8h 123 foo",
 			expected: []interface{}{&Single{Duration: 5 * time.Second}, &Single{Duration: 8 * time.Hour}},
+		},
+		{
+			name:     "Including struct pointer",
+			s:        "5s 123 foo",
+			expected: []interface{}{&IncludingPointers{Single: &Single{Duration: 5 * time.Second}, Num: intPtr(123), Str: "foo"}},
 		},
 	}
 	for _, tt := range tests {

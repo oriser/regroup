@@ -22,13 +22,13 @@ func (n *NotStructPtrError) Error() string {
 type UnknownGroupError struct{ group string }
 
 func (u *UnknownGroupError) Error() string {
-	return fmt.Sprintf("group %s didn't found in regex", u.group)
+	return fmt.Sprintf("group \"%s\" haven't found in regex", u.group)
 }
 
 type TypeNotParsableError struct{ typ reflect.Type }
 
 func (t *TypeNotParsableError) Error() string {
-	return fmt.Sprintf("type %v is not parsable", t.typ)
+	return fmt.Sprintf("type \"%v\" is not parsable", t.typ)
 }
 
 type ParseError struct {
@@ -37,7 +37,7 @@ type ParseError struct {
 }
 
 func (p *ParseError) Error() string {
-	return fmt.Sprintf("error parsing group %s: %v", p.group, p.err)
+	return fmt.Sprintf("error parsing group \"%s\": %v", p.group, p.err)
 }
 
 type RequiredGroupIsEmpty struct {
@@ -46,5 +46,5 @@ type RequiredGroupIsEmpty struct {
 }
 
 func (r *RequiredGroupIsEmpty) Error() string {
-	return fmt.Sprintf("required regroup %s is empty for field %s", r.groupName, r.fieldName)
+	return fmt.Sprintf("required regroup \"%s\" is empty for field \"%s\"", r.groupName, r.fieldName)
 }

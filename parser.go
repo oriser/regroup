@@ -10,6 +10,7 @@ type parseFunc func(src string, typ reflect.Type) (reflect.Value, error)
 
 var builtinTypesParsingFuncs = map[reflect.Kind]parseFunc{
 	reflect.Bool:    parseBool,
+	reflect.String:  parseString,
 	reflect.Int:     parseInt,
 	reflect.Int8:    parseInt,
 	reflect.Int16:   parseInt,
@@ -20,7 +21,6 @@ var builtinTypesParsingFuncs = map[reflect.Kind]parseFunc{
 	reflect.Uint16:  parseUInt,
 	reflect.Uint32:  parseUInt,
 	reflect.Uint64:  parseUInt,
-	reflect.String:  parseString,
 	reflect.Float32: parseFloat,
 	reflect.Float64: parseFloat,
 }
@@ -69,7 +69,7 @@ func parseFloat(src string, typ reflect.Type) (reflect.Value, error) {
 	return reflect.ValueOf(n).Convert(typ), nil
 }
 
-func parseBool(src string, typ reflect.Type) (reflect.Value, error) {
+func parseBool(src string, _ reflect.Type) (reflect.Value, error) {
 	b, err := strconv.ParseBool(src)
 	if err != nil {
 		return reflect.Value{}, err
@@ -77,7 +77,7 @@ func parseBool(src string, typ reflect.Type) (reflect.Value, error) {
 	return reflect.ValueOf(b), nil
 }
 
-func parseDuration(src string, typ reflect.Type) (reflect.Value, error) {
+func parseDuration(src string, _ reflect.Type) (reflect.Value, error) {
 	d, err := time.ParseDuration(src)
 	if err != nil {
 		return reflect.Value{}, err
