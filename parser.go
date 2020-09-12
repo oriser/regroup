@@ -13,10 +13,12 @@ var builtinTypesParsingFuncs = map[reflect.Kind]parseFunc{
 	reflect.Int:     parseInt,
 	reflect.Int8:    parseInt,
 	reflect.Int16:   parseInt,
+	reflect.Int32:   parseInt,
 	reflect.Int64:   parseInt,
 	reflect.Uint:    parseUInt,
 	reflect.Uint8:   parseUInt,
 	reflect.Uint16:  parseUInt,
+	reflect.Uint32:  parseUInt,
 	reflect.Uint64:  parseUInt,
 	reflect.String:  parseString,
 	reflect.Float32: parseFloat,
@@ -28,10 +30,10 @@ var typesParsingFuncs = map[reflect.Type]parseFunc{
 }
 
 func getParsingFunc(typ reflect.Type) parseFunc {
-	if parsingFunc, ok := builtinTypesParsingFuncs[typ.Kind()]; ok {
+	if parsingFunc, ok := typesParsingFuncs[typ]; ok {
 		return parsingFunc
 	}
-	if parsingFunc, ok := typesParsingFuncs[typ]; ok {
+	if parsingFunc, ok := builtinTypesParsingFuncs[typ.Kind()]; ok {
 		return parsingFunc
 	}
 	return nil

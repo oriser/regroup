@@ -14,38 +14,6 @@ type ReGroup struct {
 	matcher *regexp.Regexp
 }
 
-type CompileError error
-type NotStructPtrError struct{}
-
-type NoMatchFoundError struct {}
-func (n *NoMatchFoundError) Error() string {
-	return "no match found for given string"
-}
-
-func (n *NotStructPtrError) Error() string {
-	return "expected struct pointer"
-}
-
-type UnknownGroupError struct {group string}
-func (u *UnknownGroupError) Error() string {
-	return fmt.Sprintf("group %s didn't found in regex", u.group)
-}
-
-type TypeNotParsableError struct{typ reflect.Type}
-func (t *TypeNotParsableError) Error() string {
-	return fmt.Sprintf("type %v is not parsable", t.typ)
-}
-
-type ParseError struct{err error}
-func (p *ParseError) Error() string {
-	return fmt.Sprintf("parse error: %v", p.err)
-}
-
-type RequiredGroupIsEmpty struct{groupName string; fieldName string}
-func (r *RequiredGroupIsEmpty) Error() string {
-	return fmt.Sprintf("required regroup %s is empty for field %s", r.groupName, r.fieldName)
-}
-
 func quote(s string) string {
 	if strconv.CanBackquote(s) {
 		return "`" + s + "`"
@@ -93,21 +61,7 @@ func (r *ReGroup) groupAndOption(fieldType reflect.StructField) (group, option s
 }
 
 func (r *ReGroup) setField(fieldType reflect.StructField, fieldRef reflect.Value, matchGroup map[string]string) error {
-	regroupKey, regroupOption := r.groupAndOption(fieldType)
-	if regroupKey == "" {
-		return nil
-	}
 	fieldRefType := fieldType.Type
-
-	matchedVal, ok := matchGroup[regroupKey]
-	if !ok {
-		return &UnknownGroupError{group: regroupKey}
-	}
-
-	if matchedVal == "" && RequiredOption == regroupOption {
-		return &RequiredGroupIsEmpty{groupName: regroupKey, fieldName: fieldType.Name}
-	}
-
 	if fieldRefType.Kind() == reflect.Ptr {
 		if fieldRef.IsNil() {
 			return fmt.Errorf("can't set value to nil pointer in struct field: %s", fieldType.Name)
@@ -120,6 +74,23 @@ func (r *ReGroup) setField(fieldType reflect.StructField, fieldRef reflect.Value
 		return r.fillTarget(matchGroup, fieldRef)
 	}
 
+	regroupKey, regroupOption := r.groupAndOption(fieldType)
+	if regroupKey == "" {
+		return nil
+	}
+
+	matchedVal, ok := matchGroup[regroupKey]
+	if !ok {
+		return &UnknownGroupError{group: regroupKey}
+	}
+
+	if matchedVal == "" {
+		if RequiredOption == regroupOption {
+			return &RequiredGroupIsEmpty{groupName: regroupKey, fieldName: fieldType.Name}
+		}
+		return nil
+	}
+
 	parsedFunc := getParsingFunc(fieldRefType)
 	if parsedFunc == nil {
 		return &TypeNotParsableError{fieldRefType}
@@ -127,7 +98,7 @@ func (r *ReGroup) setField(fieldType reflect.StructField, fieldRef reflect.Value
 
 	parsed, err := parsedFunc(matchedVal, fieldRefType)
 	if err != nil {
-		return &ParseError{err: err}
+		return &ParseError{group: regroupKey, err: err}
 	}
 
 	fieldRef.Set(parsed)
@@ -135,20 +106,13 @@ func (r *ReGroup) setField(fieldType reflect.StructField, fieldRef reflect.Value
 	return nil
 }
 
-func (r *ReGroup) fillTarget(matchGroup map[string]string, target interface{}) error {
-	targetPtr := reflect.ValueOf(target)
-	if targetPtr.Kind() != reflect.Ptr {
-		return &NotStructPtrError{}
-	}
-	targetRef := targetPtr.Elem()
-	if targetRef.Kind() != reflect.Struct {
-		return &NotStructPtrError{}
-	}
-
+func (r *ReGroup) fillTarget(matchGroup map[string]string, targetRef reflect.Value) error {
+	fmt.Printf("Matches: %+v\n", matchGroup)
 	targetType := targetRef.Type()
 	for i := 0; i < targetType.NumField(); i++ {
 		fieldRef := targetRef.Field(i)
 		if !fieldRef.CanSet() {
+			fmt.Printf("Can't set %s\n", targetType.Field(i).Name)
 			continue
 		}
 
@@ -160,11 +124,48 @@ func (r *ReGroup) fillTarget(matchGroup map[string]string, target interface{}) e
 	return nil
 }
 
-func (r *ReGroup) FindStringSubmatch(s string, target interface{}) error {
+func (r *ReGroup) validateTarget(target interface{}) (reflect.Value, error) {
+	targetPtr := reflect.ValueOf(target)
+	if targetPtr.Kind() != reflect.Ptr {
+		return reflect.Value{}, &NotStructPtrError{}
+	}
+	return targetPtr.Elem(), nil
+}
+
+func (r *ReGroup) MatchToTarget(s string, target interface{}) error {
 	match := r.matcher.FindStringSubmatch(s)
 	if match == nil {
 		return &NoMatchFoundError{}
 	}
+	fmt.Printf("Match: %+v\n", match)
 
-	return r.fillTarget(r.matchGroupMap(match), target)
+	targetRef, err := r.validateTarget(target)
+	if err != nil {
+		return err
+	}
+	return r.fillTarget(r.matchGroupMap(match), targetRef)
+}
+
+func (r *ReGroup) MatchAllToTarget(s string, n int, targetType interface{}) ([]interface{}, error) {
+	targetRefType, err := r.validateTarget(targetType)
+	if err != nil {
+		return nil, err
+	}
+
+	matches := r.matcher.FindAllStringSubmatch(s, n)
+	fmt.Printf("All matches: %+v\n", matches)
+	if matches == nil {
+		return nil, &NoMatchFoundError{}
+	}
+
+	ret := make([]interface{}, len(matches))
+	for i, match := range matches {
+		target := reflect.New(targetRefType.Type()).Elem()
+		if err := r.fillTarget(r.matchGroupMap(match), target); err != nil {
+			return nil, err
+		}
+		ret[i] = target.Addr().Interface()
+	}
+
+	return ret, nil
 }
