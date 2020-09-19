@@ -10,6 +10,7 @@ import (
 
 const requiredOption = "required"
 
+// ReGroup is the main ReGroup matcher struct
 type ReGroup struct {
 	matcher *regexp.Regexp
 }
