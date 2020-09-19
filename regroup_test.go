@@ -95,12 +95,18 @@ func isErrorMatch(t *testing.T, expected error, got error) {
 func TestReGroup_MatchToTarget(t *testing.T) {
 	r := MustCompile(`(?P<duration>.*?)\s+(?P<num>\d+)\s+(?P<str>.*)`)
 
+	type differentRe struct {
+		re          string
+		mustCompile bool
+		shouldPanic bool
+	}
+
 	tests := []struct {
-		name        string
-		s           string
-		wantErr     error
-		expected    interface{}
-		differentRe string
+		name     string
+		s        string
+		wantErr  error
+		expected interface{}
+		differentRe
 	}{
 		{
 			name:     "Single struct",
@@ -116,7 +122,7 @@ func TestReGroup_MatchToTarget(t *testing.T) {
 			name:        "Float bool",
 			s:           "5.321 true",
 			expected:    &FloatBool{F: 5.321, B: true},
-			differentRe: `(?P<float>\d+\.\d+)\s+(?P<bool>.*)`,
+			differentRe: differentRe{re: `(?P<float>\d+\.\d+)\s+(?P<bool>.*)`},
 		},
 		{
 			name:     "With no extract",
@@ -127,7 +133,7 @@ func TestReGroup_MatchToTarget(t *testing.T) {
 			name:        "Empty non required field",
 			s:           "5s 123",
 			expected:    &Including{Single: Single{Duration: 5 * time.Second}, Num: 123},
-			differentRe: `(?P<duration>.*?)\s+(?P<num>\d+)\s*(?P<str>.*)?`,
+			differentRe: differentRe{re: `(?P<duration>.*?)\s+(?P<num>\d+)\s*(?P<str>.*)?`},
 		},
 		{
 			name:     "No match",
@@ -169,35 +175,41 @@ func TestReGroup_MatchToTarget(t *testing.T) {
 			s:           "5s 123.3 foo",
 			wantErr:     &ParseError{},
 			expected:    &Including{},
-			differentRe: `(?P<duration>.*?)\s+(?P<num>\d+\.\d+)\s+(?P<str>.*)`,
+			differentRe: differentRe{re: `(?P<duration>.*?)\s+(?P<num>\d+\.\d+)\s+(?P<str>.*)`},
 		},
 		{
 			name:        "Parse error bool",
 			s:           "123.3 invalid_bool",
 			wantErr:     &ParseError{},
 			expected:    &FloatBool{},
-			differentRe: `(?P<float>\d+\.\d+)\s+(?P<bool>.*)`,
+			differentRe: differentRe{re: `(?P<float>\d+\.\d+)\s+(?P<bool>.*)`},
 		},
 		{
 			name:        "Parse error float",
 			s:           "123.s3 true",
 			wantErr:     &ParseError{},
 			expected:    &FloatBool{},
-			differentRe: `(?P<float>\d+\.s\d+)\s+(?P<bool>.*)`,
+			differentRe: differentRe{re: `(?P<float>\d+\.s\d+)\s+(?P<bool>.*)`},
 		},
 		{
 			name:        "Parse error uint",
 			s:           "5s -3 str",
 			wantErr:     &ParseError{},
 			expected:    &IncludingPointers{Num: uintPtr(1)},
-			differentRe: `(?P<duration>.*?)\s+(?P<num>-\d+)\s+(?P<str>.*)`,
+			differentRe: differentRe{re: `(?P<duration>.*?)\s+(?P<num>-\d+)\s+(?P<str>.*)`},
 		},
 		{
 			name:        "Compile error",
 			s:           "",
 			wantErr:     &CompileError{},
 			expected:    &Single{},
-			differentRe: "invlid[",
+			differentRe: differentRe{re: "invlid["},
+		},
+		{
+			name:        "Compile error panic",
+			s:           "",
+			expected:    &Single{},
+			differentRe: differentRe{re: "invlid[", shouldPanic: true, mustCompile: true},
 		},
 		{
 			name:     "Including struct pointer nil field",
@@ -210,13 +222,27 @@ func TestReGroup_MatchToTarget(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			reGroup := r
 			var err error
-			if tt.differentRe != "" {
-				reGroup, err = Compile(tt.differentRe)
-				if err != nil {
-					isErrorMatch(t, tt.wantErr, err)
-					return
+
+			if tt.re != "" {
+				defer func() {
+					if tt.shouldPanic {
+						if r := recover(); r == nil {
+							t.Error("Should have panic")
+						}
+					}
+				}()
+
+				if tt.mustCompile {
+					reGroup = MustCompile(tt.re)
+				} else {
+					reGroup, err = Compile(tt.re)
+					if err != nil {
+						isErrorMatch(t, tt.wantErr, err)
+						return
+					}
 				}
 			}
+
 			target := getTarget(tt.expected)
 			if err = reGroup.MatchToTarget(tt.s, target); err != nil || tt.wantErr != nil {
 				isErrorMatch(t, tt.wantErr, err)
