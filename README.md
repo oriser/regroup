@@ -1,6 +1,9 @@
 # regroup
 Simple library to match regex expression named groups into go struct using struct tags and automatic parsing
 
+![](https://github.com/oriser/regroup/workflows/reviewdog/badge.svg)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 ## Example
 #### Single match
 ```go

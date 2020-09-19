@@ -10,8 +10,8 @@ jobs:
     name: misspell
     runs-on: ubuntu-latest
     steps:
-      - name: Check out code.
-        uses: actions/checkout@v1
+      - name: Check out code
+        uses: actions/checkout@v2
       - name: Run misspell.
         uses: reviewdog/action-misspell@v1
         with:
@@ -21,8 +21,8 @@ jobs:
     name: golangci-lint
     runs-on: ubuntu-latest
     steps:
-      - name: Check out code.
-        uses: actions/checkout@v1
+      - name: Check out code
+        uses: actions/checkout@v2
       - name: Run reviewdog golangci-lint
         uses: reviewdog/action-golangci-lint@v1
         with:
