@@ -8,6 +8,10 @@ Simple library to match regex expression named groups into go struct using struc
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/oriser/regroup)](https://pkg.go.dev/github.com/oriser/regroup)
 [![Go Report Card](https://goreportcard.com/badge/github.com/oriser/regroup)](https://goreportcard.com/report/github.com/oriser/regroup)
 
+### Installing
+`go get github.com/oriser/regroup`
+
+
 ## Example
 #### Single match
 ```go
