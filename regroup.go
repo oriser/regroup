@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const RequiredOption = "required"
+const requiredOption = "required"
 
 type ReGroup struct {
 	matcher *regexp.Regexp
@@ -60,9 +60,9 @@ func (r *ReGroup) groupAndOption(fieldType reflect.StructField) (group, option s
 	}
 	splitted := strings.Split(regroupKey, ",")
 	if len(splitted) == 1 {
-		return splitted[0], ""
+		return strings.TrimSpace(splitted[0]), ""
 	}
-	return splitted[0], strings.ToLower(splitted[1])
+	return strings.TrimSpace(splitted[0]), strings.TrimSpace(strings.ToLower(splitted[1]))
 }
 
 // setField getting a single struct field and matching groups map and set the field value to its matching group value tag
@@ -103,7 +103,7 @@ func (r *ReGroup) setField(fieldType reflect.StructField, fieldRef reflect.Value
 	}
 
 	if matchedVal == "" {
-		if RequiredOption == regroupOption {
+		if requiredOption == regroupOption {
 			return &RequiredGroupIsEmpty{groupName: regroupKey, fieldName: fieldType.Name}
 		}
 		return nil
@@ -166,7 +166,7 @@ func (r *ReGroup) MatchToTarget(s string, target interface{}) error {
 
 // Creating a new pointer to given target type
 // Will recurse over all NOT NIL struct pointer and create them too
-func (r *ReGroup) getNewTargetType(originalRef reflect.Value) reflect.Value {
+func (r *ReGroup) newTargetType(originalRef reflect.Value) reflect.Value {
 	originalType := originalRef.Type()
 
 	target := reflect.New(originalRef.Type()).Elem()
@@ -179,7 +179,7 @@ func (r *ReGroup) getNewTargetType(originalRef reflect.Value) reflect.Value {
 			origElem := origFieldRef.Elem()
 			if origElem.Type().Kind() == reflect.Struct {
 				// If the type is not nil struct pointer, recurse into it to create all necessary fields inside
-				target.Field(i).Set(r.getNewTargetType(origElem).Addr())
+				target.Field(i).Set(r.newTargetType(origElem).Addr())
 			} else {
 				target.Field(i).Set(reflect.New(origElem.Type()))
 			}
@@ -206,7 +206,7 @@ func (r *ReGroup) MatchAllToTarget(s string, n int, targetType interface{}) ([]i
 
 	ret := make([]interface{}, len(matches))
 	for i, match := range matches {
-		target := r.getNewTargetType(targetRefType)
+		target := r.newTargetType(targetRefType)
 		if err := r.fillTarget(r.matchGroupMap(match), target); err != nil {
 			return nil, err
 		}

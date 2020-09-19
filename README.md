@@ -48,7 +48,7 @@ import (
 	"time"
 )
 
-var re = regroup.MustCompile(`(?P<duration>.*?)\s+(?P<num>\d+)\s+(?P<foo>.*)`)
+var re = regroup.MustCompile(`\s*(?P<duration>.*?)\s+(?P<num>\d+)\s+(?P<foo>.*)`)
 
 type B struct {
 	Str string `regroup:"foo"`
@@ -62,7 +62,10 @@ type A struct {
 
 func main() {
 	a := &A{}
-	rets, err := re.MatchAllToTarget("5s 123 bar1\n1m 456 bar2\n10h 789 bar3", -1, a)
+	s := `5s 123 bar1
+		  1m 456 bar2
+		  10h 789 bar3`
+	rets, err := re.MatchAllToTarget(s, -1, a)
 	if err != nil {
 		panic(err)
 	}
