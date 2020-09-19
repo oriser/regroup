@@ -1,7 +1,9 @@
 package regroup
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -35,12 +37,17 @@ type FloatBool struct {
 	B bool    `regroup:"bool"`
 }
 
+type NonExtracting struct {
+	Single
+	NonExtract string
+}
+
 func uintPtr(val uint) *uint {
 	return &val
 }
 
 func getTarget(expected interface{}) interface{} {
-	switch expected.(type) {
+	switch v := expected.(type) {
 	case Single:
 		return Single{}
 	case *Single:
@@ -52,9 +59,14 @@ func getTarget(expected interface{}) interface{} {
 	case *Required:
 		return &Required{}
 	case *IncludingPointers:
-		return &IncludingPointers{Num: uintPtr(0), Single: &Single{}}
+		if v.Num != nil {
+			return &IncludingPointers{Num: uintPtr(0), Single: &Single{}}
+		}
+		return &IncludingPointers{}
 	case *FloatBool:
 		return &FloatBool{}
+	case *NonExtracting:
+		return &NonExtracting{}
 	default:
 		panic("invalid expected")
 	}
@@ -63,14 +75,20 @@ func getTarget(expected interface{}) interface{} {
 func isErrorMatch(t *testing.T, expected error, got error) {
 	if got != nil {
 		if expected == nil {
-			t.Errorf("MatchToTarget() unexpected error = %v", got)
+			t.Errorf("Unexpected error = %v", got)
 		} else if reflect.ValueOf(expected).Elem().Type() != reflect.ValueOf(got).Elem().Type() {
-			t.Errorf("MatchToTarget() unexpected error type. Error = %T(%v), wantErr: %T(%v)", got, got, expected, expected)
+			t.Errorf("Unexpected error type. Error = %T(%v), wantErr: %T(%v)", got, got, expected, expected)
+		}
+		if reflect.ValueOf(expected).Elem().Type() == reflect.ValueOf(fmt.Errorf("")).Elem().Type() {
+			// if it's just an error string (*errors.errorString), check that the target error contains this error string
+			if !strings.Contains(got.Error(), expected.Error()) {
+				t.Errorf("Expected error to conatin the string: `%v`, but it's not: %v", expected, got)
+			}
 		}
 		return
 	}
 	if expected != nil {
-		t.Errorf("MatchToTarget() expected error = %T(%v), got no error", expected, expected)
+		t.Errorf("Expected error = %T(%v), got no error", expected, expected)
 	}
 }
 
@@ -99,6 +117,17 @@ func TestReGroup_MatchToTarget(t *testing.T) {
 			s:           "5.321 true",
 			expected:    &FloatBool{F: 5.321, B: true},
 			differentRe: `(?P<float>\d+\.\d+)\s+(?P<bool>.*)`,
+		},
+		{
+			name:     "With no extract",
+			s:        "5s 123 foo",
+			expected: &NonExtracting{Single: Single{Duration: 5 * time.Second}, NonExtract: ""},
+		},
+		{
+			name:        "Empty non required field",
+			s:           "5s 123",
+			expected:    &Including{Single: Single{Duration: 5 * time.Second}, Num: 123},
+			differentRe: `(?P<duration>.*?)\s+(?P<num>\d+)\s*(?P<str>.*)?`,
 		},
 		{
 			name:     "No match",
@@ -130,10 +159,38 @@ func TestReGroup_MatchToTarget(t *testing.T) {
 			expected: &Required{},
 		},
 		{
-			name:     "Parse error",
+			name:     "Parse error duration",
 			s:        "5ls 123 foo",
 			wantErr:  &ParseError{},
 			expected: &Single{},
+		},
+		{
+			name:        "Parse error number",
+			s:           "5s 123.3 foo",
+			wantErr:     &ParseError{},
+			expected:    &Including{},
+			differentRe: `(?P<duration>.*?)\s+(?P<num>\d+\.\d+)\s+(?P<str>.*)`,
+		},
+		{
+			name:        "Parse error bool",
+			s:           "123.3 invalid_bool",
+			wantErr:     &ParseError{},
+			expected:    &FloatBool{},
+			differentRe: `(?P<float>\d+\.\d+)\s+(?P<bool>.*)`,
+		},
+		{
+			name:        "Parse error float",
+			s:           "123.s3 true",
+			wantErr:     &ParseError{},
+			expected:    &FloatBool{},
+			differentRe: `(?P<float>\d+\.s\d+)\s+(?P<bool>.*)`,
+		},
+		{
+			name:        "Parse error uint",
+			s:           "5s -3 str",
+			wantErr:     &ParseError{},
+			expected:    &IncludingPointers{Num: uintPtr(1)},
+			differentRe: `(?P<duration>.*?)\s+(?P<num>-\d+)\s+(?P<str>.*)`,
 		},
 		{
 			name:        "Compile error",
@@ -141,6 +198,12 @@ func TestReGroup_MatchToTarget(t *testing.T) {
 			wantErr:     &CompileError{},
 			expected:    &Single{},
 			differentRe: "invlid[",
+		},
+		{
+			name:     "Including struct pointer nil field",
+			s:        "5s 123 foo",
+			wantErr:  fmt.Errorf("can't set value to nil pointer in field"),
+			expected: &IncludingPointers{},
 		},
 	}
 	for _, tt := range tests {
@@ -186,10 +249,22 @@ func TestReGroup_MatchAllToTarget(t *testing.T) {
 			expected: []interface{}{&Including{Single: Single{Duration: 5 * time.Second}, Num: 123, Str: "foo"}},
 		},
 		{
+			name:     "No struct pointer",
+			s:        "5s 123 foo",
+			wantErr:  &NotStructPtrError{},
+			expected: []interface{}{Single{}},
+		},
+		{
 			name:     "No match",
 			s:        "5s aa foo",
 			wantErr:  &NoMatchFoundError{},
 			expected: []interface{}{&Single{}},
+		},
+		{
+			name:     "Parse error",
+			s:        "5ls 123 foo",
+			wantErr:  &ParseError{},
+			expected: []interface{}{&Single{Duration: 5 * time.Second}},
 		},
 		{
 			name:     "Multiple matches",
