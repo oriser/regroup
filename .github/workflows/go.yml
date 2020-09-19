@@ -22,6 +22,8 @@ jobs:
       - name: Download Go Modules
         if: steps.cache.outputs.cache-hit != 'true'
         run: go mod download
+      - name: fmt
+        run: if [[ $(go fmt ./...) ]]; then; echo "Please fix your go files formatting (go fmt ./...)"; exit 1; fi
       - name: Test
         run: go test -v -race -coverpkg=./... -coverprofile=coverage.txt ./...
 
