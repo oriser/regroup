@@ -27,7 +27,7 @@ func quote(s string) string {
 func Compile(expr string) (*ReGroup, error) {
 	matcher, err := regexp.Compile(expr)
 	if err != nil {
-		return nil, CompileError(err)
+		return nil, &CompileError{err: err}
 	}
 
 	return &ReGroup{matcher: matcher}, nil

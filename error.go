@@ -6,7 +6,11 @@ import (
 )
 
 // CompileError returned on regex compilation error
-type CompileError error
+type CompileError struct{ err error }
+
+func (c *CompileError) Error() string {
+	return fmt.Sprintf("compilation error: %v", c.err)
+}
 
 // NoMatchFoundError indicates no regex matches for given string
 type NoMatchFoundError struct{}

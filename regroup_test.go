@@ -25,12 +25,17 @@ type Required struct {
 }
 
 type IncludingPointers struct {
-	Num    *int   `regroup:"num"`
+	Num    *uint  `regroup:"num"`
 	Str    string `regroup:"str"`
 	Single *Single
 }
 
-func intPtr(val int) *int {
+type FloatBool struct {
+	F float32 `regroup:"float"`
+	B bool    `regroup:"bool"`
+}
+
+func uintPtr(val uint) *uint {
 	return &val
 }
 
@@ -47,7 +52,9 @@ func getTarget(expected interface{}) interface{} {
 	case *Required:
 		return &Required{}
 	case *IncludingPointers:
-		return &IncludingPointers{Num: intPtr(0), Single: &Single{}}
+		return &IncludingPointers{Num: uintPtr(0), Single: &Single{}}
+	case *FloatBool:
+		return &FloatBool{}
 	default:
 		panic("invalid expected")
 	}
@@ -71,10 +78,11 @@ func TestReGroup_MatchToTarget(t *testing.T) {
 	r := MustCompile(`(?P<duration>.*?)\s+(?P<num>\d+)\s+(?P<str>.*)`)
 
 	tests := []struct {
-		name     string
-		s        string
-		wantErr  error
-		expected interface{}
+		name        string
+		s           string
+		wantErr     error
+		expected    interface{}
+		differentRe string
 	}{
 		{
 			name:     "Single struct",
@@ -85,6 +93,12 @@ func TestReGroup_MatchToTarget(t *testing.T) {
 			name:     "Including struct",
 			s:        "5s 123 foo",
 			expected: &Including{Single: Single{Duration: 5 * time.Second}, Num: 123, Str: "foo"},
+		},
+		{
+			name:        "Float bool",
+			s:           "5.321 true",
+			expected:    &FloatBool{F: 5.321, B: true},
+			differentRe: `(?P<float>\d+\.\d+)\s+(?P<bool>.*)`,
 		},
 		{
 			name:     "No match",
@@ -121,11 +135,27 @@ func TestReGroup_MatchToTarget(t *testing.T) {
 			wantErr:  &ParseError{},
 			expected: &Single{},
 		},
+		{
+			name:        "Compile error",
+			s:           "",
+			wantErr:     &CompileError{},
+			expected:    &Single{},
+			differentRe: "invlid[",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			reGroup := r
+			var err error
+			if tt.differentRe != "" {
+				reGroup, err = Compile(tt.differentRe)
+				if err != nil {
+					isErrorMatch(t, tt.wantErr, err)
+					return
+				}
+			}
 			target := getTarget(tt.expected)
-			if err := r.MatchToTarget(tt.s, target); err != nil || tt.wantErr != nil {
+			if err = reGroup.MatchToTarget(tt.s, target); err != nil || tt.wantErr != nil {
 				isErrorMatch(t, tt.wantErr, err)
 				return
 			}
@@ -169,7 +199,7 @@ func TestReGroup_MatchAllToTarget(t *testing.T) {
 		{
 			name:     "Including struct pointer",
 			s:        "5s 123 foo",
-			expected: []interface{}{&IncludingPointers{Single: &Single{Duration: 5 * time.Second}, Num: intPtr(123), Str: "foo"}},
+			expected: []interface{}{&IncludingPointers{Single: &Single{Duration: 5 * time.Second}, Num: uintPtr(123), Str: "foo"}},
 		},
 	}
 	for _, tt := range tests {
