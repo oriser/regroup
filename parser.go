@@ -69,7 +69,7 @@ func parseFloat(src string, typ reflect.Type) (reflect.Value, error) {
 	return reflect.ValueOf(n).Convert(typ), nil
 }
 
-func parseBool(src string, _ reflect.Type) (reflect.Value, error) {
+func parseBool(src string, _ reflect.Type) (reflect.Value, error){
 	b, err := strconv.ParseBool(src)
 	if err != nil {
 		return reflect.Value{}, err
