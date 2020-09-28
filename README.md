@@ -6,7 +6,7 @@ Simple library to match regex expression named groups into go struct using struc
 [![codecov](https://codecov.io/gh/oriser/regroup/branch/master/graph/badge.svg)](https://codecov.io/gh/oriser/regroup)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/oriser/regroup)](https://pkg.go.dev/github.com/oriser/regroup)
-[![Go Report Card](https://goreportcard.com/badge/github.com/oriser/regroup)](https://goreportcard.com/report/github.com/oriser/regroup)
+[![Go Report Card](https://goreportcard.com/badge/github.com/oriser/regroup?a=b)](https://goreportcard.com/report/github.com/oriser/regroup)
 
 ### Installing
 `go get github.com/oriser/regroup`
