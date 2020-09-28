@@ -1,4 +1,4 @@
-0# regroup
+# regroup
 Simple library to match regex expression named groups into go struct using struct tags and automatic parsing
 
 ![](https://github.com/oriser/regroup/workflows/reviewdog/badge.svg)
@@ -7,7 +7,7 @@ Simple library to match regex expression named groups into go struct using struc
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/oriser/regroup)](https://pkg.go.dev/github.com/oriser/regroup)
 [![Go Report Card](https://goreportcard.com/badge/github.com/oriser/regroup?a=b)](https://goreportcard.com/report/github.com/oriser/regroup)
-[![codeclimate](https://api.codeclimate.com/v1/badges/169ebfa87cb6af0c6db6/maintainability)](https://codeclimate.com/github/oriser/regroup/test_coverage)
+[![codeclimate](https://api.codeclimate.com/v1/badges/169ebfa87cb6af0c6db6/maintainability)](https://goreportcard.com/report/github.com/oriser/regroup)
 
 ### Installing
 `go get github.com/oriser/regroup`
