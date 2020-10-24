@@ -150,6 +150,16 @@ func (r *ReGroup) validateTarget(target interface{}) (reflect.Value, error) {
 	return targetPtr.Elem(), nil
 }
 
+// Groups returns a map contains each group name as a key and the group's matched value as value
+func (r *ReGroup) Groups(s string) (map[string]string, error) {
+	match := r.matcher.FindStringSubmatch(s)
+	if match == nil {
+		return nil, &NoMatchFoundError{}
+	}
+
+	return r.matchGroupMap(match), nil
+}
+
 // MatchToTarget matches a regex expression to string s and parse it into `target` argument.
 // If no matches found, a &NoMatchFoundError error will be returned
 func (r *ReGroup) MatchToTarget(s string, target interface{}) error {
@@ -174,7 +184,7 @@ func (r *ReGroup) newTargetType(originalRef reflect.Value) reflect.Value {
 	for i := 0; i < originalRef.NumField(); i++ {
 		origFieldRef := originalRef.Field(i)
 		if originalType.Field(i).Type.Kind() == reflect.Ptr {
-			if origFieldRef.IsNil() {
+			if origFieldRef.IsNil() || !target.Field(i).CanSet() {
 				continue
 			}
 			origElem := origFieldRef.Elem()

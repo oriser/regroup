@@ -2,8 +2,9 @@ package regroup
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 )
@@ -46,7 +47,9 @@ func uintPtr(val uint) *uint {
 	return &val
 }
 
-func getTarget(expected interface{}) interface{} {
+func getTarget(t *testing.T, expected interface{}) interface{} {
+	t.Helper()
+
 	switch v := expected.(type) {
 	case Single:
 		return Single{}
@@ -73,26 +76,22 @@ func getTarget(expected interface{}) interface{} {
 }
 
 func isErrorMatch(t *testing.T, expected error, got error) {
-	if got != nil {
-		if expected == nil {
-			t.Errorf("Unexpected error = %v", got)
-		} else if reflect.ValueOf(expected).Elem().Type() != reflect.ValueOf(got).Elem().Type() {
-			t.Errorf("Unexpected error type. Error = %T(%v), wantErr: %T(%v)", got, got, expected, expected)
-		}
-		if reflect.ValueOf(expected).Elem().Type() == reflect.ValueOf(fmt.Errorf("")).Elem().Type() {
-			// if it's just an error string (*errors.errorString), check that the target error contains this error string
-			if !strings.Contains(got.Error(), expected.Error()) {
-				t.Errorf("Expected error to conatin the string: `%v`, but it's not: %v", expected, got)
-			}
-		}
-		return
+	t.Helper()
+
+	if expected == nil {
+		require.NoError(t, got)
 	}
-	if expected != nil {
-		t.Errorf("Expected error = %T(%v), got no error", expected, expected)
+	require.Error(t, got)
+	require.IsType(t, expected, got)
+
+	if reflect.ValueOf(expected).Elem().Type() == reflect.ValueOf(fmt.Errorf("")).Elem().Type() {
+		// if it's just an error string (*errors.errorString), check that the target error contains this error string
+		require.Contains(t, got.Error(), expected.Error())
 	}
+
 }
 
-func TestReGroup_MatchToTarget(t *testing.T) {
+func TestMatchToTarget(t *testing.T) {
 	r := MustCompile(`(?P<duration>.*?)\s+(?P<num>\d+)\s+(?P<str>.*)`)
 
 	type differentRe struct {
@@ -243,19 +242,57 @@ func TestReGroup_MatchToTarget(t *testing.T) {
 				}
 			}
 
-			target := getTarget(tt.expected)
+			target := getTarget(t, tt.expected)
 			if err = reGroup.MatchToTarget(tt.s, target); err != nil || tt.wantErr != nil {
 				isErrorMatch(t, tt.wantErr, err)
 				return
 			}
-			if !reflect.DeepEqual(tt.expected, target) {
-				t.Errorf("Expected: %+v, Got: %+v", tt.expected, target)
-			}
+			assert.Equal(t, tt.expected, target)
 		})
 	}
 }
 
-func TestReGroup_MatchAllToTarget(t *testing.T) {
+func TestGroups(t *testing.T) {
+	r := MustCompile(`(?P<duration>.*?)\s+(?P<num>\d+)\s*(?P<str>.*)?`)
+	tests := []struct {
+		name     string
+		s        string
+		wantErr  error
+		expected map[string]string
+	}{
+		{
+			name:     "Single match",
+			s:        "5s 123 foo",
+			wantErr:  nil,
+			expected: map[string]string{"duration": "5s", "num": "123", "str": "foo"},
+		},
+		{
+			name:     "No match",
+			s:        "5s aa foo",
+			wantErr:  &NoMatchFoundError{},
+			expected: nil,
+		},
+		{
+			name:     "Empty group",
+			s:        "5s 123",
+			wantErr:  nil,
+			expected: map[string]string{"duration": "5s", "num": "123", "str": ""},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			groups, err := r.Groups(tt.s)
+			if err != nil || tt.wantErr != nil {
+				isErrorMatch(t, tt.wantErr, err)
+				return
+			}
+
+			require.Equal(t, tt.expected, groups)
+		})
+	}
+}
+
+func TestMatchAllToTarget(t *testing.T) {
 	r := MustCompile(`(?P<duration>.*?)\s+(?P<num>\d+)\s+(?P<str>.*)`)
 
 	tests := []struct {
@@ -305,19 +342,15 @@ func TestReGroup_MatchAllToTarget(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			target := getTarget(tt.expected[0])
+			target := getTarget(t, tt.expected[0])
 			matches, err := r.MatchAllToTarget(tt.s, -1, target)
 			if err != nil || tt.wantErr != nil {
 				isErrorMatch(t, tt.wantErr, err)
 				return
 			}
-			if len(matches) != len(tt.expected) {
-				t.Errorf("Expected: %d matches, Got: %d", len(tt.expected), len(matches))
-			}
+			require.Len(t, matches, len(tt.expected))
 			for i, match := range matches {
-				if !reflect.DeepEqual(tt.expected[i], match) {
-					t.Errorf("Not equal match at index %d. Expected: %+v, Got: %+v", i, tt.expected[i], match)
-				}
+				assert.Equalf(t, tt.expected[i], match, "Not equal match at index %d", i)
 			}
 		})
 	}
