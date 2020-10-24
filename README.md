@@ -14,6 +14,28 @@ Simple library to match regex expression named groups into go struct using struc
 
 
 ## Example
+#### Named groups map
+```go
+package main
+
+import (
+	"fmt"
+	"github.com/oriser/regroup"
+)
+
+var re = regroup.MustCompile(`(?P<duration>.*?)\s+(?P<num>\d+)\s+(?P<foo>.*)`)
+
+func main() {
+	mathces, err := re.Groups("5s 123 bar")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%+v\n", mathces)
+}
+```
+Will output:
+`map[duration:5s foo:bar num:123]`
+
 #### Single match
 ```go
 package main
