@@ -1,0 +1,11 @@
+repo:
+  - ./*
+
+@core:
+  - ./regroup.go
+
+test:
+  - ./*_test.go
+
+doc:
+  - any: ['./README.md', './LICENCE']
