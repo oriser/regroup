@@ -143,7 +143,6 @@ Will return an error: `required regroup "foo" is empty for field "Str"`
 - `uint16`
 - `uint32`
 - `uint64`
-- `uint64`
 - `float32`
 - `float64`
 
