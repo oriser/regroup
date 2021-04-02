@@ -26,11 +26,11 @@ import (
 var re = regroup.MustCompile(`(?P<duration>.*?)\s+(?P<num>\d+)\s+(?P<foo>.*)`)
 
 func main() {
-	mathces, err := re.Groups("5s 123 bar")
+	matches, err := re.Groups("5s 123 bar")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("%+v\n", mathces)
+	fmt.Printf("%+v\n", matches)
 }
 ```
 Will output:
