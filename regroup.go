@@ -37,7 +37,7 @@ func Compile(expr string) (*ReGroup, error) {
 	return &ReGroup{matcher: matcher}, nil
 }
 
-// MustCompile calls Compile and panics if it returned an error
+// MustCompile calls Compile and panics if it returns an error
 func MustCompile(expr string) *ReGroup {
 	reGroup, err := Compile(expr)
 	if err != nil {
@@ -46,7 +46,7 @@ func MustCompile(expr string) *ReGroup {
 	return reGroup
 }
 
-// matchGroupMap convert match string array into a map of group key to group value
+// matchGroupMap converts the match string array into a map of group keys to group values
 func (r *ReGroup) matchGroupMap(match []string) map[string]string {
 	ret := make(map[string]string)
 	for i, name := range r.matcher.SubexpNames() {
@@ -57,7 +57,7 @@ func (r *ReGroup) matchGroupMap(match []string) map[string]string {
 	return ret
 }
 
-// groupAndOption return the requested regroup and its options split by ','
+// groupAndOption returns the requested regroup and its options split by ','
 func (r *ReGroup) groupAndOption(fieldType reflect.StructField) (group string, option []string) {
 	regroupKey := fieldType.Tag.Get("regroup")
 	if regroupKey == "" {

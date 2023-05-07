@@ -362,25 +362,25 @@ func TestBooleanExistenceCheck(t *testing.T) {
 	}
 	r := MustCompile(`^(?P<name>\w*)(?:,(?P<is_admin>admin))?$`)
 	tests := map[string]struct {
-		inputString string
-		testFunc    func(t *testing.T, parsed *Exist, err error)
+		input      string
+		assertions func(t *testing.T, parsed *Exist, err error)
 	}{
 		"present flag": {
-			inputString: "bob_smith,admin",
-			testFunc: func(t *testing.T, parsed *Exist, err error) {
+			input: "bob_smith,admin",
+			assertions: func(t *testing.T, parsed *Exist, err error) {
 				assert.NoError(t, err)
 				assert.True(t, parsed.IsAdmin)
 			},
 		},
 		"misspelled flag": {
-			inputString: "bob_smith,bladmin",
-			testFunc: func(t *testing.T, parsed *Exist, err error) {
+			input: "bob_smith,bladmin",
+			assertions: func(t *testing.T, parsed *Exist, err error) {
 				assert.Error(t, err)
 			},
 		},
 		"no flag": {
-			inputString: "bob_smith",
-			testFunc: func(t *testing.T, parsed *Exist, err error) {
+			input: "bob_smith",
+			assertions: func(t *testing.T, parsed *Exist, err error) {
 				assert.NoError(t, err)
 				assert.False(t, parsed.IsAdmin)
 			},
@@ -389,8 +389,8 @@ func TestBooleanExistenceCheck(t *testing.T) {
 	for tn, tc := range tests {
 		t.Run(tn, func(t *testing.T) {
 			parsed := &Exist{}
-			err := r.MatchToTarget(tc.inputString, parsed)
-			tc.testFunc(t, parsed, err)
+			err := r.MatchToTarget(tc.input, parsed)
+			tc.assertions(t, parsed, err)
 		})
 	}
 }
