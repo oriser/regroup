@@ -2,13 +2,17 @@ package regroup
 
 import (
 	"fmt"
+	"golang.org/x/exp/slices"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-const requiredOption = "required"
+const (
+	requiredOption = "required"
+	existsOption   = "exists"
+)
 
 // ReGroup is the main ReGroup matcher struct
 type ReGroup struct {
@@ -33,7 +37,7 @@ func Compile(expr string) (*ReGroup, error) {
 	return &ReGroup{matcher: matcher}, nil
 }
 
-// MustCompile calls Compile and panicked if it retuned an error
+// MustCompile calls Compile and panics if it returned an error
 func MustCompile(expr string) *ReGroup {
 	reGroup, err := Compile(expr)
 	if err != nil {
@@ -53,17 +57,21 @@ func (r *ReGroup) matchGroupMap(match []string) map[string]string {
 	return ret
 }
 
-// groupAndOption return the requested regroup and it's option splitted by ','
-func (r *ReGroup) groupAndOption(fieldType reflect.StructField) (group, option string) {
+// groupAndOption return the requested regroup and its options split by ','
+func (r *ReGroup) groupAndOption(fieldType reflect.StructField) (group string, option []string) {
 	regroupKey := fieldType.Tag.Get("regroup")
 	if regroupKey == "" {
-		return "", ""
+		return "", nil
 	}
-	splitted := strings.Split(regroupKey, ",")
-	if len(splitted) == 1 {
-		return strings.TrimSpace(splitted[0]), ""
+	split := strings.Split(regroupKey, ",")
+	if len(split) == 1 {
+		return strings.TrimSpace(split[0]), nil
 	}
-	return strings.TrimSpace(splitted[0]), strings.TrimSpace(strings.ToLower(splitted[1]))
+	var options []string
+	for _, opt := range split[1:] {
+		options = append(options, strings.TrimSpace(opt))
+	}
+	return strings.TrimSpace(split[0]), options
 }
 
 // setField getting a single struct field and matching groups map and set the field value to its matching group value tag
@@ -86,7 +94,7 @@ func (r *ReGroup) setField(fieldType reflect.StructField, fieldRef reflect.Value
 		return r.fillTarget(matchGroup, fieldRef)
 	}
 
-	regroupKey, regroupOption := r.groupAndOption(fieldType)
+	regroupKey, regroupOptions := r.groupAndOption(fieldType)
 	if regroupKey == "" {
 		return nil
 	}
@@ -103,8 +111,13 @@ func (r *ReGroup) setField(fieldType reflect.StructField, fieldRef reflect.Value
 		return &UnknownGroupError{group: regroupKey}
 	}
 
+	if slices.Contains(regroupOptions, existsOption) {
+		fieldRef.SetBool(matchedVal != "")
+		return nil
+	}
+
 	if matchedVal == "" {
-		if requiredOption == regroupOption {
+		if slices.Contains(regroupOptions, requiredOption) {
 			return &RequiredGroupIsEmpty{groupName: regroupKey, fieldName: fieldType.Name}
 		}
 		return nil
