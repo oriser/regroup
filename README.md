@@ -151,6 +151,28 @@ func main() {
 ```
 Will return an error: `required regroup "foo" is empty for field "Str"`
 
+### Existence Match Groups
+You can check for the presence of an optional group using a `bool` with the `exists` tag.
+
+```go
+package main
+
+type Exist struct {
+	IsAdmin bool `regroup:"is_admin,exists"`
+}
+
+func main() {
+	r := MustCompile(`^(?P<name>\w*)(?:,(?P<is_admin>admin))?$`)
+	parsed := &Exist{}
+	if err := r.MatchToTarget("bob_smith", parsed); err != nil {
+		panic(err)
+	}
+	fmt.Printf("%t\n", parsed.IsAdmin)
+}
+```
+
+This example would print `false`. However if the input were `bob_smith,admin` it would print `true`. When using the `exists` tag, make ure that you regular expression has an optional group and matches all the expected input patterns.
+
 ## Supported struct field types
 - `time.Duration`
 - `bool`

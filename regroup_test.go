@@ -355,3 +355,42 @@ func TestMatchAllToTarget(t *testing.T) {
 		})
 	}
 }
+
+func TestBooleanExistenceCheck(t *testing.T) {
+	type Exist struct {
+		IsAdmin bool `regroup:"is_admin,exists"`
+	}
+	r := MustCompile(`^(?P<name>\w*)(?:,(?P<is_admin>admin))?$`)
+	tests := map[string]struct {
+		input      string
+		assertions func(t *testing.T, parsed *Exist, err error)
+	}{
+		"present flag": {
+			input: "bob_smith,admin",
+			assertions: func(t *testing.T, parsed *Exist, err error) {
+				assert.NoError(t, err)
+				assert.True(t, parsed.IsAdmin)
+			},
+		},
+		"misspelled flag": {
+			input: "bob_smith,bladmin",
+			assertions: func(t *testing.T, parsed *Exist, err error) {
+				assert.Error(t, err)
+			},
+		},
+		"no flag": {
+			input: "bob_smith",
+			assertions: func(t *testing.T, parsed *Exist, err error) {
+				assert.NoError(t, err)
+				assert.False(t, parsed.IsAdmin)
+			},
+		},
+	}
+	for tn, tc := range tests {
+		t.Run(tn, func(t *testing.T) {
+			parsed := &Exist{}
+			err := r.MatchToTarget(tc.input, parsed)
+			tc.assertions(t, parsed, err)
+		})
+	}
+}
