@@ -5,12 +5,12 @@ jobs:
     name: Test and Fmt
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
+        name: Checkout code
       - uses: actions/setup-go@v4
         name: Setup Go
         with:
           go-version-file: "go.mod"
-      - uses: actions/checkout@v3
-        name: Checkout code
       - name: Cache Go Modules
         id: cache
         uses: actions/cache@v1
