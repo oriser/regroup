@@ -5,11 +5,11 @@ jobs:
     name: Test and Fmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v2
-        name: Setup go
+      - uses: actions/setup-go@v4
+        name: Setup Go
         with:
-          go-version: 1.14
-      - uses: actions/checkout@v2
+          go-version-file: "go.mod"
+      - uses: actions/checkout@v3
         name: Checkout code
       - name: Cache Go Modules
         id: cache
@@ -26,5 +26,4 @@ jobs:
         run: if [[ $(go fmt ./...) ]]; then echo "Please fix your go files formatting (go fmt ./...)"; exit 1; fi
       - name: Test
         run: go test -v -race -coverpkg=./... -coverprofile=coverage.txt ./...
-
-      - uses: codecov/codecov-action@v1
+      - uses: codecov/codecov-action@v3
