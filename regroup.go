@@ -2,11 +2,13 @@ package regroup
 
 import (
 	"fmt"
-	"golang.org/x/exp/slices"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
+
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -91,6 +93,9 @@ func (r *ReGroup) setField(fieldType reflect.StructField, fieldRef reflect.Value
 			}
 			fieldRef = fieldRef.Elem()
 		}
+		if fieldRefType.Name() == "Time" && fieldRefType.PkgPath() == "time" {
+			return r.fillTimeTarget(fieldType, fieldRef, matchGroup)
+		}
 		return r.fillTarget(matchGroup, fieldRef)
 	}
 
@@ -151,6 +156,25 @@ func (r *ReGroup) fillTarget(matchGroup map[string]string, targetRef reflect.Val
 		}
 	}
 
+	return nil
+}
+
+func (r *ReGroup) fillTimeTarget(fieldType reflect.StructField, fieldRef reflect.Value, matchGroup map[string]string) error {
+	regroupKey, regroupOptions := r.groupAndOption(fieldType)
+	if regroupKey == "" {
+		return nil
+	}
+	var pattern string
+	if len(regroupOptions) == 0 {
+		pattern = time.RFC3339
+	} else {
+		pattern = regroupOptions[0]
+	}
+	parsed, err := time.Parse(pattern, matchGroup[regroupKey])
+	if err != nil {
+		return err
+	}
+	fieldRef.Set(reflect.ValueOf(parsed))
 	return nil
 }
 
