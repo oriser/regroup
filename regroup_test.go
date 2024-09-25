@@ -2,11 +2,12 @@ package regroup
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type Single struct {
@@ -389,6 +390,50 @@ func TestBooleanExistenceCheck(t *testing.T) {
 	for tn, tc := range tests {
 		t.Run(tn, func(t *testing.T) {
 			parsed := &Exist{}
+			err := r.MatchToTarget(tc.input, parsed)
+			tc.assertions(t, parsed, err)
+		})
+	}
+}
+
+func TestTimeParsing(t *testing.T) {
+	type TimedStruct struct {
+		Timestamp            time.Time  `regroup:"timestamp"`
+		TimestampPtr         *time.Time `regroup:"timestampPtr,2006-01-02T15:04:05Z07:00 MST"`
+		TimestampWithPattern time.Time  `regroup:"timestampWithPattern,2006-01-02T15:04:05Z07:00"`
+		Date                 time.Time  `regroup:"date,2006-01-02"`
+	}
+	r := MustCompile(`(?P<timestamp>[\w\-:+]*)/(?P<timestampPtr>[\ \w\-:+]*)/(?P<timestampWithPattern>[\w\-:+]*)/(?P<date>[\w\-]*)`)
+	tests := map[string]struct {
+		input      string
+		assertions func(t *testing.T, parsed *TimedStruct, err error)
+	}{
+		"Correct timestamps": {
+			input: "2012-11-01T22:08:41+00:00/2012-01-02T15:04:05-08:00 PST/2012-01-02T15:04:05+04:00/2024-03-04",
+			assertions: func(t *testing.T, parsed *TimedStruct, err error) {
+				assert.NoError(t, err)
+				assert.Equal(t, time.Date(2012, 11, 1, 22, 8, 41, 0, time.FixedZone("", 0)), parsed.Timestamp)
+				assert.Equal(t, time.Date(2012, 1, 2, 15, 4, 5, 0, time.FixedZone("PST", -8*60*60)), *parsed.TimestampPtr)
+				assert.Equal(t, time.Date(2012, 1, 2, 15, 4, 5, 0, time.FixedZone("", 4*60*60)), parsed.TimestampWithPattern)
+				assert.Equal(t, time.Date(2024, 3, 4, 0, 0, 0, 0, time.UTC), parsed.Date)
+			},
+		},
+		"Missing timezone": {
+			input: "2012-11-01T22:08:41+00:00/2012-01-02T15:04:05-08:00/2012-01-02T15:04:05+04:00/2024-03-04",
+			assertions: func(t *testing.T, parsed *TimedStruct, err error) {
+				assert.Error(t, err)
+			},
+		},
+		"Invalid date format": {
+			input: "2012-11-01T22:08:41+00:00/2012-01-02T15:04:05-08:00 PST/2012-01-02T15:04:05+04:00/2024-03O04",
+			assertions: func(t *testing.T, parsed *TimedStruct, err error) {
+				assert.Error(t, err)
+			},
+		},
+	}
+	for tn, tc := range tests {
+		t.Run(tn, func(t *testing.T) {
+			parsed := &TimedStruct{TimestampPtr: new(time.Time)}
 			err := r.MatchToTarget(tc.input, parsed)
 			tc.assertions(t, parsed, err)
 		})
