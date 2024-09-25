@@ -412,10 +412,10 @@ func TestTimeParsing(t *testing.T) {
 			input: "2012-11-01T22:08:41+00:00/2012-01-02T15:04:05-08:00 PST/2012-01-02T15:04:05+04:00/2024-03-04",
 			assertions: func(t *testing.T, parsed *TimedStruct, err error) {
 				assert.NoError(t, err)
-				assert.Equal(t, time.Date(2012, 11, 1, 22, 8, 41, 0, time.FixedZone("", 0)), parsed.Timestamp)
-				assert.Equal(t, time.Date(2012, 1, 2, 15, 4, 5, 0, time.FixedZone("PST", -8*60*60)), *parsed.TimestampPtr)
-				assert.Equal(t, time.Date(2012, 1, 2, 15, 4, 5, 0, time.FixedZone("", 4*60*60)), parsed.TimestampWithPattern)
-				assert.Equal(t, time.Date(2024, 3, 4, 0, 0, 0, 0, time.UTC), parsed.Date)
+				assert.Equal(t, time.Date(2012, 11, 1, 22, 8, 41, 0, time.FixedZone("", 0)).String(), parsed.Timestamp.String())
+				assert.Equal(t, time.Date(2012, 1, 2, 15, 4, 5, 0, time.FixedZone("PST", -8*60*60)).String(), (*parsed.TimestampPtr).String())
+				assert.Equal(t, time.Date(2012, 1, 2, 15, 4, 5, 0, time.FixedZone("", 4*60*60)).String(), parsed.TimestampWithPattern.String())
+				assert.Equal(t, time.Date(2024, 3, 4, 0, 0, 0, 0, time.UTC).String(), parsed.Date.String())
 			},
 		},
 		"Missing timezone": {
